@@ -1,30 +1,34 @@
-@description('The name of the SQL logical server.')
+//Create a preferred name of the SQL logical server
 param serverName string = 'sqlserver${uniqueString(resourceGroup().id)}'
 
-@description('The name of the SQL Database.')
+//Enter the name of the SQL Database when prompted
 param sqlDBName string
 
-@description('Location for all resources.')
+// Use resource group location for resource location
 param location string = resourceGroup().location
 
-@description('The administrator username of the SQL logical server.')
+// Provide administrator username of the SQL logical server
 param administratorLogin string
 
-@description('The administrator password of the SQL logical server.')
+// Provide administrator password of the SQL logical server
 @secure()
 param administratorLoginPassword string
 
-@description('The name of the storage account.')
+// Unique Name of the storage account
 param storageAccountName string = 'storage${uniqueString(resourceGroup().id)}'
 
-@description('The name of the App Service plan.')
+
+// Unique Name of the storage account
+param appServiceAppName string = 'appName${uniqueString(resourceGroup().id)}'
+
+// Unique name of the App Service plan.
 param appServicePlanName string = 'servPlan${uniqueString(resourceGroup().id)}'
 
 
-@description('The SKU of the storage account.')
+// Parameter for the SKU of the storage account.
 param storageAccountSkuName string = 'Standard_LRS'
 
-@description('The SKU of the App Service plan.')
+// Service tier for the App Service plan.
 param appServicePlanSkuName string = 'F1'
 
 
@@ -64,6 +68,31 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   location: location
   sku: {
     name: appServicePlanSkuName
+  }
+}
+
+resource appServiceApp 'Microsoft.Web/sites@2023-12-01' = {
+  name: appServiceAppName
+  location: location
+  properties: {
+    serverFarmId: appServicePlan.id
+    httpsOnly: true
+    siteConfig: {
+      appSettings: [
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
+        {
+          name: 'AzureWebJobsStorage'
+          value: storageAccount.properties.primaryEndpoints.blob
+        }
+        {
+          name: 'SQLSERVER_CONNECTION_STRING'
+          value: 'Server=tcp:${sqlServer.name}.database.windows.net;Database=${sqlDB.name};User ID=${administratorLogin};Password=${administratorLoginPassword};'
+        }
+      ]
+    }
   }
 }
 
